@@ -53,12 +53,10 @@ namespace GameOfLife
                 for (int j = 0; j < rows; j++)
                 {
                     // Increase the value for Next(2) to make life less common.
-                    Rectangle rect = new Rectangle();
-                    rect.Width = canvas.Width / columns;
-                    rect.Height = canvas.Height /rows;
                     
-                    Cell cell = new Cell(rand.Next(2) == 0, i, j, rect);
+                    Cell cell = new Cell(rand.Next(2) == 0, i, j);
                     gameBoard.AddCell(cell, i, j);
+                    // Draws initial board.
                     if(cell.isAlive)
                         DrawRectangle(i,j, cell.isAlive);
                 }
@@ -140,8 +138,6 @@ namespace GameOfLife
         {
             // Instead of recreating a list, reuse the same List.
             nextGen.Clear();
-            index = 0;
-
             // Constructs a temporary list which will hold the Cells which needs to Toggle their alive status.
             for (int i = 0; i < columns; i++)
             {
@@ -151,17 +147,32 @@ namespace GameOfLife
                         nextGen.Add(gameBoard[i, j]);
                 }
             }
-            canvas.Children.Clear();
 
             // After computing the next game board, refresh the actual game
             foreach (Cell cell in nextGen)
             {
                 cell.ToggleAlive();
-                if (cell.isAlive)
-                {
-                    Tuple<int, int> index = cell.getIndex();
-                    DrawRectangle(index.Item1 , index.Item2 , cell.isAlive);
+            }
 
+            // Now refresh the gameBoard.
+            DrawBoard();
+        }
+
+        /// <summary>
+        /// Draws the current gameBoard, drawing alive cells only.
+        /// </summary>
+        private void DrawBoard()
+        {
+            index = 0;
+            canvas.Children.Clear();
+            for (int i = 0; i < columns; i++)
+            {
+                for (int j = 0; j < rows; j++)
+                {
+                    if (gameBoard[i, j].isAlive)
+                    {
+                        DrawRectangle(i, j, true);
+                    }
                 }
             }
         }
@@ -173,12 +184,7 @@ namespace GameOfLife
         /// <param name="e"></param>
         private void mouseClick(object sender, System.EventArgs e)
         {
-//            while (true)
-  //          {
                 NextIteration();
-            this.UpdateLayout();
-    //        }
-
         }
     }
 
@@ -189,17 +195,11 @@ namespace GameOfLife
     public class Cell
     {
         private bool alive;
-        private Tuple<int, int> index;
-        /// <summary>
-        /// Since I'm working in multidimensional arrays, I cannot easily find the index location of a cell
-        /// Hence I'm breaking a bit of Object Oriented Design allowing the cells to know their location within
-        /// the game board.
-        /// </summary>
-        /// <returns>A Int Int tuple containing information about Column, Row position</returns>
-        public Tuple<int, int> getIndex()
-        {
-            return index;
-        }
+
+        // Since I'm working in multidimensional arrays, I cannot easily find the index location of a cell
+        // Hence I'm breaking a bit of Object Oriented Design allowing the cells to know their location within
+        // the game board.
+        public Tuple<int, int> index;
 
         /// <summary>
         /// True if the cell is currently alive
@@ -209,31 +209,17 @@ namespace GameOfLife
             get { return alive; }
         }
 
-        Rectangle rect;
-
         /// <summary>
         /// Constructs a new Cell. A cell is smart, and knows its position within the GameBoard.
         /// </summary>
         /// <param name="alive">State of the Cell</param>
         /// <param name="column">The Column position of the Cell</param>
         /// <param name="row">The Row position of the Cell</param>
-        public Cell(bool alive, int column, int row, Rectangle rect)
+        public Cell(bool alive, int column, int row)
         {
-            this.rect = rect;
-
-//            SolidColorBrush myBrush = new SolidColorBrush(Colors.Green);
-            rect.Stroke = Brushes.Black;
-            rect.StrokeThickness = 0;
-   //         rect.Fill = myBrush;
-
-            //            this.BorderThickness = new Thickness(1);
-            //            this.BorderBrush = Brushes.Black;
             index = new Tuple<int, int>(column, row);
             if (alive)
                 ToggleAlive();
-            else
-                rect.Fill = Brushes.GhostWhite;
-//                Background = Brushes.GhostWhite;
         }
 
         /// <summary>
@@ -242,12 +228,6 @@ namespace GameOfLife
         public void ToggleAlive()
         {
             alive = !alive;
-            if (isAlive)
-                rect.Fill = Brushes.Green;
-            //                Background = Brushes.Green;
-            else
-                rect.Fill = Brushes.GhostWhite;
-//                Background = Brushes.GhostWhite;
         }
     }
 
@@ -303,10 +283,9 @@ namespace GameOfLife
         /// <returns></returns>
         public Cell CellUp(Cell cell)
         {
-            Tuple<int, int> index = cell.getIndex();
-            if (index.Item2 == 0)
-                return gameBoard[index.Item1, rows - 1];
-            return gameBoard[index.Item1, index.Item2 - 1];
+            if (cell.index.Item2 == 0)
+                return gameBoard[cell.index.Item1, rows - 1];
+            return gameBoard[cell.index.Item1, cell.index.Item2 - 1];
         }
         /// <summary>
         /// Returns the Downwards neighbor of a given Cell. If direction exceeds a border, any direction will be wrapped around the GameBoard.
@@ -315,10 +294,9 @@ namespace GameOfLife
         /// <returns></returns>
         public Cell CellDown(Cell cell)
         {
-            Tuple<int, int> index = cell.getIndex();
-            if (index.Item2 == rows - 1)
-                return gameBoard[index.Item1, 0];
-            return gameBoard[index.Item1, index.Item2 + 1];
+            if (cell.index.Item2 == rows - 1)
+                return gameBoard[cell.index.Item1, 0];
+            return gameBoard[cell.index.Item1, cell.index.Item2 + 1];
         }
 
         /// <summary>
@@ -328,10 +306,9 @@ namespace GameOfLife
         /// <returns></returns>
         public Cell CellRight(Cell cell)
         {
-            Tuple<int, int> index = cell.getIndex();
-            if (index.Item1 == columns - 1)
-                return gameBoard[0, index.Item2];
-            return gameBoard[index.Item1 + 1, index.Item2];
+            if (cell.index.Item1 == columns - 1)
+                return gameBoard[0, cell.index.Item2];
+            return gameBoard[cell.index.Item1 + 1, cell.index.Item2];
         }
 
         /// <summary>
@@ -341,10 +318,9 @@ namespace GameOfLife
         /// <returns></returns>
         public Cell CellLeft(Cell cell)
         {
-            Tuple<int, int> index = cell.getIndex();
-            if (index.Item1 == 0)
-                return gameBoard[columns - 1, index.Item2];
-            return gameBoard[index.Item1 - 1, index.Item2];
+            if (cell.index.Item1 == 0)
+                return gameBoard[columns - 1, cell.index.Item2];
+            return gameBoard[cell.index.Item1 - 1, cell.index.Item2];
         }
 
         /// <summary>

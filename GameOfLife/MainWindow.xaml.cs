@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 /// <remarks>
 /// A simple Implementation of the GameOfLife, which will create a Game of default size 20x20 and populate it randomly with alive and dead cells.
@@ -16,9 +17,13 @@ namespace GameOfLife
     /// </summary>
     public partial class MainWindow : Window
     {
+        // Instead of working with labels, which are always drawn, 
+        // I've chosen now to implement it as rectangles being drawn, allowing me to not draw dead cells.
+        Canvas canvas;
+        int index = 0;
         // size of the game of life, can be edited here.
-        private int rows = 20;
-        private int columns = 20;
+        private int rows = 100;
+        private int columns = 100;
         GameBoard gameBoard;
 
         // A list which will contain the Cells which needs to change status in between iterations.
@@ -26,6 +31,12 @@ namespace GameOfLife
 
         public MainWindow()
         {
+            canvas = new Canvas();
+            canvas.Background = Brushes.GhostWhite;
+
+            canvas.Width = 570;
+            canvas.Height = 550;
+
             InitializeComponent();
 
             // Only used for initializing the game, assigning random states of life
@@ -36,31 +47,52 @@ namespace GameOfLife
             // Simple mouse capture, if the window is clicked, the next iteration is called.
             this.MouseDown += new System.Windows.Input.MouseButtonEventHandler(this.mouseClick);
 
-            Grid grid = new Grid();
-
-            // Define the rows in the grid
-            for (int i = 0; i < rows; i++)
-            {
-                RowDefinition gridRow = new RowDefinition();
-                grid.RowDefinitions.Add(gridRow);
-            }
-            // Define the columns in the grid, and populate entire grid with cells
+            // populate the game with cells
             for (int i = 0; i < columns; i++)
             {
-                ColumnDefinition gridCol = new ColumnDefinition();
                 for (int j = 0; j < rows; j++)
                 {
                     // Increase the value for Next(2) to make life less common.
-                    Cell cell = new Cell(rand.Next(2) == 0, i, j);
+                    Rectangle rect = new Rectangle();
+                    rect.Width = canvas.Width / columns;
+                    rect.Height = canvas.Height /rows;
+                    
+                    Cell cell = new Cell(rand.Next(2) == 0, i, j, rect);
                     gameBoard.AddCell(cell, i, j);
-                    Grid.SetRow(cell, j);
-                    Grid.SetColumn(cell, i);
-                    grid.Children.Add(cell);
+                    if(cell.isAlive)
+                        DrawRectangle(i,j, cell.isAlive);
                 }
-                grid.ColumnDefinitions.Add(gridCol);
             }
             // overwrites any content which may have been written in the .xaml file, which is none.
-            this.Content = grid;
+            this.Content = canvas;
+        }
+
+        /// <summary>
+        /// Will draw a rectangle, of the proper size, on a given location
+        /// </summary>
+        /// <param name="i"></param>
+        /// <param name="j"></param>
+        /// <param name="alive">Determines the colour of the rectangle, alive is green, dead is white.</param>
+        private void DrawRectangle(int i, int j, bool alive)
+        {
+            Rectangle rect = new Rectangle();
+            rect.Width = canvas.Width / columns;
+            rect.Height = canvas.Height / rows;
+            rect.Stroke = Brushes.Black;
+            if (columns < 100 || rows < 100)
+                rect.StrokeThickness = 1;
+            else
+                rect.StrokeThickness = 0;
+            // Drawing every cell, even the dead ones, is expensive.
+            // But it should be an avaliable option
+            if (alive)
+                rect.Fill = Brushes.Green;
+            else
+                rect.Fill = Brushes.GhostWhite;
+            Canvas.SetLeft(rect, i * canvas.Width / columns);
+            Canvas.SetTop(rect, j * canvas.Height / rows);
+            canvas.Children.Insert(index, rect);
+            index++;
         }
 
         /// <summary>
@@ -108,6 +140,7 @@ namespace GameOfLife
         {
             // Instead of recreating a list, reuse the same List.
             nextGen.Clear();
+            index = 0;
 
             // Constructs a temporary list which will hold the Cells which needs to Toggle their alive status.
             for (int i = 0; i < columns; i++)
@@ -118,10 +151,18 @@ namespace GameOfLife
                         nextGen.Add(gameBoard[i, j]);
                 }
             }
+            canvas.Children.Clear();
+
             // After computing the next game board, refresh the actual game
             foreach (Cell cell in nextGen)
             {
                 cell.ToggleAlive();
+                if (cell.isAlive)
+                {
+                    Tuple<int, int> index = cell.getIndex();
+                    DrawRectangle(index.Item1 , index.Item2 , cell.isAlive);
+
+                }
             }
         }
 
@@ -132,14 +173,20 @@ namespace GameOfLife
         /// <param name="e"></param>
         private void mouseClick(object sender, System.EventArgs e)
         {
-            NextIteration();
+//            while (true)
+  //          {
+                NextIteration();
+            this.UpdateLayout();
+    //        }
+
         }
     }
 
     /// <summary>
-    /// A Cell is an extended Label, which also includes information about its location, and its state, being dead or alive.
+    /// Previously an extended label, but not anymore, as it would always be drawn, slowing down the game when going bigger.
+    /// Includes information about cell location and state, being dead or alive.
     /// </summary>
-    public class Cell : Label
+    public class Cell
     {
         private bool alive;
         private Tuple<int, int> index;
@@ -162,21 +209,31 @@ namespace GameOfLife
             get { return alive; }
         }
 
+        Rectangle rect;
+
         /// <summary>
         /// Constructs a new Cell. A cell is smart, and knows its position within the GameBoard.
         /// </summary>
         /// <param name="alive">State of the Cell</param>
         /// <param name="column">The Column position of the Cell</param>
         /// <param name="row">The Row position of the Cell</param>
-        public Cell(bool alive, int column, int row)
+        public Cell(bool alive, int column, int row, Rectangle rect)
         {
-            this.BorderThickness = new Thickness(1);
-            this.BorderBrush = Brushes.Black;
+            this.rect = rect;
+
+//            SolidColorBrush myBrush = new SolidColorBrush(Colors.Green);
+            rect.Stroke = Brushes.Black;
+            rect.StrokeThickness = 0;
+   //         rect.Fill = myBrush;
+
+            //            this.BorderThickness = new Thickness(1);
+            //            this.BorderBrush = Brushes.Black;
             index = new Tuple<int, int>(column, row);
             if (alive)
                 ToggleAlive();
             else
-                Background = Brushes.GhostWhite;
+                rect.Fill = Brushes.GhostWhite;
+//                Background = Brushes.GhostWhite;
         }
 
         /// <summary>
@@ -186,9 +243,11 @@ namespace GameOfLife
         {
             alive = !alive;
             if (isAlive)
-                Background = Brushes.Green;
+                rect.Fill = Brushes.Green;
+            //                Background = Brushes.Green;
             else
-                Background = Brushes.GhostWhite;
+                rect.Fill = Brushes.GhostWhite;
+//                Background = Brushes.GhostWhite;
         }
     }
 

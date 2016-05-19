@@ -6,7 +6,4 @@
         xmlns:local="clr-namespace:WpfApplication1"
         mc:Ignorable="d"
         Title="GameOfLife" Height="600" Width="600">
-    <Grid>
-        
-    </Grid>
 </Window>
